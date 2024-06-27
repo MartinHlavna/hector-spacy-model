@@ -1,0 +1,74 @@
+preprocess:
+  cmd: python -m weasel run preprocess
+  script:
+    - mkdir -p corpus/UD_Slovak-SNK
+    - python -m spacy convert assets/UD_Slovak-SNK/sk_snk-ud-train.conllu  corpus/UD_Slovak-SNK/  --converter
+      conllu  --n-sents 10  --merge-subtokens
+    - python -m spacy convert  assets/UD_Slovak-SNK/sk_snk-ud-dev.conllu  corpus/UD_Slovak-SNK/  --converter
+      conllu  --n-sents 10  --merge-subtokens
+    - python -m spacy convert  assets/UD_Slovak-SNK/sk_snk-ud-test.conllu corpus/UD_Slovak-SNK/
+      --converter conllu  --n-sents 10  --merge-subtokens
+    - mv corpus/UD_Slovak-SNK/sk_snk-ud-train.spacy corpus/UD_Slovak-SNK/train.spacy
+    - mv corpus/UD_Slovak-SNK/sk_snk-ud-dev.spacy corpus/UD_Slovak-SNK/dev.spacy
+    - mv corpus/UD_Slovak-SNK/sk_snk-ud-test.spacy corpus/UD_Slovak-SNK/test.spacy
+  deps:
+    - path: assets/UD_Slovak-SNK/sk_snk-ud-train.conllu
+      md5: 8af937e70d76e56ffd9bea262bdc659f
+    - path: assets/UD_Slovak-SNK/sk_snk-ud-dev.conllu
+      md5: 4f63446268b6062af64c93e21b1accea
+    - path: assets/UD_Slovak-SNK/sk_snk-ud-test.conllu
+      md5: 38615ee83b2c099c957d09c6a8b05fb2
+  outs:
+    - path: corpus/UD_Slovak-SNK/train.spacy
+      md5: 3f7495d4b672fe8e99234223513c0121
+    - path: corpus/UD_Slovak-SNK/dev.spacy
+      md5: 940ba66d41ec9877f9c167933d0643b5
+    - path: corpus/UD_Slovak-SNK/test.spacy
+      md5: feba339f6f235d983e2151b427760a66
+train:
+  cmd: python -m weasel run train
+  script:
+    - python -m spacy train  configs/default.cfg --output training/UD_Slovak-SNK --gpu-id
+      -1  --paths.train corpus/UD_Slovak-SNK/train.spacy  --paths.dev corpus/UD_Slovak-SNK/dev.spacy  --nlp.lang=sk
+  deps:
+    - path: corpus/UD_Slovak-SNK/train.spacy
+      md5: 3f7495d4b672fe8e99234223513c0121
+    - path: corpus/UD_Slovak-SNK/dev.spacy
+      md5: 940ba66d41ec9877f9c167933d0643b5
+    - path: configs/default.cfg
+      md5: f98144eb23859b76f41ee49a5739ab4f
+  outs:
+    - path: training/UD_Slovak-SNK/model-best
+      md5: 69de407db427feebce505400e228d82e
+evaluate:
+  cmd: python -m weasel run evaluate
+  script:
+    - python -m spacy evaluate  ./training/UD_Slovak-SNK/model-best  ./corpus/UD_Slovak-SNK/test.spacy  --output
+      ./metrics/UD_Slovak-SNK.json  --gpu-id -1
+  deps:
+    - path: training/UD_Slovak-SNK/model-best
+      md5: 69de407db427feebce505400e228d82e
+    - path: corpus/UD_Slovak-SNK/test.spacy
+      md5: feba339f6f235d983e2151b427760a66
+  outs:
+    - path: metrics/UD_Slovak-SNK.json
+      md5: 374353a6fb1076bdd88c842ca9689228
+package:
+  cmd: python -m weasel run package
+  script:
+    - python -m spacy package  training/UD_Slovak-SNK/model-best packages  --name
+      ud_sk_snk  --version 1.0.0 --force
+  deps:
+    - path: training/UD_Slovak-SNK/model-best
+      md5: 69de407db427feebce505400e228d82e
+  outs:
+    - path: packages/sk_ud_sk_snk-1.0.0/dist/en_ud_sk_snk-1.0.0.tar.gz
+      md5: null
+clean:
+  cmd: python -m weasel run clean
+  script:
+    - rm -rf training/*
+    - rm -rf metrics/*
+    - rm -rf corpus/*
+  deps: []
+  outs: []
