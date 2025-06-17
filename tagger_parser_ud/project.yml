@@ -22,7 +22,7 @@ vars:
   dev_name: "sk_snk-ud-dev"
   test_name: "sk_snk-ud-test"
   package_name: "ud_sk_snk"
-  package_version: "1.1.0"
+  package_version: "1.2.0"
   gpu: -1
 
 # These are the directories that the project needs. The project CLI will make
@@ -72,6 +72,7 @@ commands:
       - "mv corpus/${vars.treebank}/${vars.train_name}.spacy corpus/${vars.treebank}/train.spacy"
       - "mv corpus/${vars.treebank}/${vars.dev_name}.spacy corpus/${vars.treebank}/dev.spacy"
       - "mv corpus/${vars.treebank}/${vars.test_name}.spacy corpus/${vars.treebank}/test.spacy"
+      - python "scripts/extract_raw_training_text.py" "corpus/UD_Slovak-SNK/train.spacy" "assets/floret_train_raw_text.txt"
     deps:
       - "assets/${vars.treebank}/${vars.train_name}.conllu"
       - "assets/${vars.treebank}/${vars.dev_name}.conllu"
@@ -80,10 +81,15 @@ commands:
       - "corpus/${vars.treebank}/train.spacy"
       - "corpus/${vars.treebank}/dev.spacy"
       - "corpus/${vars.treebank}/test.spacy"
+      - "assets/floret_train_raw_text.txt"
 
   - name: train
     help: "Train ${vars.treebank}"
     script:
+      - rm -rf assets/vectors
+      - mkdir assets/vectors
+      - floret cbow -dim 300 -minn 4 -maxn 5 -mode floret -hashCount 2 -bucket 50000 -input assets/floret_train_raw_text.txt -output assets/vectors/floret_sk
+      - python -m spacy init vectors sk assets/vectors/floret_sk.floret --mode floret assets/vectors/sk_floret_pkg
       - >-
         python -m spacy train 
         configs/${vars.config}.cfg
@@ -91,11 +97,13 @@ commands:
         --gpu-id ${vars.gpu} 
         --paths.train corpus/${vars.treebank}/train.spacy 
         --paths.dev corpus/${vars.treebank}/dev.spacy 
+        --paths.vectors assets/vectors/sk_floret_pkg
         --nlp.lang=${vars.lang}
     deps:
       - "corpus/${vars.treebank}/train.spacy"
       - "corpus/${vars.treebank}/dev.spacy"
       - "configs/${vars.config}.cfg"
+      - "assets/floret_train_raw_text.txt"
     outputs:
       - "training/${vars.treebank}/model-best"
 

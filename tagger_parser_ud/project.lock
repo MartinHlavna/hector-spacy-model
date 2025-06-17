@@ -11,35 +11,48 @@ preprocess:
     - mv corpus/UD_Slovak-SNK/sk_snk-ud-train.spacy corpus/UD_Slovak-SNK/train.spacy
     - mv corpus/UD_Slovak-SNK/sk_snk-ud-dev.spacy corpus/UD_Slovak-SNK/dev.spacy
     - mv corpus/UD_Slovak-SNK/sk_snk-ud-test.spacy corpus/UD_Slovak-SNK/test.spacy
+    - python "scripts/extract_raw_training_text.py" "corpus/UD_Slovak-SNK/train.spacy"
+      "assets/floret_train_raw_text.txt"
   deps:
     - path: assets/UD_Slovak-SNK/sk_snk-ud-train.conllu
-      md5: 8af937e70d76e56ffd9bea262bdc659f
+      md5: 3d3a76a405761a7f8ded8508626315db
     - path: assets/UD_Slovak-SNK/sk_snk-ud-dev.conllu
-      md5: 4f63446268b6062af64c93e21b1accea
+      md5: 9ae23ab1146d50106947380ded1bfec5
     - path: assets/UD_Slovak-SNK/sk_snk-ud-test.conllu
-      md5: 38615ee83b2c099c957d09c6a8b05fb2
+      md5: 97b85730bd661da58389bb5811790fb5
   outs:
     - path: corpus/UD_Slovak-SNK/train.spacy
-      md5: 3f7495d4b672fe8e99234223513c0121
+      md5: 06c146244bb10f3fa1b9dcf21c446bf4
     - path: corpus/UD_Slovak-SNK/dev.spacy
-      md5: 940ba66d41ec9877f9c167933d0643b5
+      md5: f0731fea7f284b827ace3449d0ee5320
     - path: corpus/UD_Slovak-SNK/test.spacy
-      md5: feba339f6f235d983e2151b427760a66
+      md5: a1e4baaf9648791fb61ee24a23cab679
+    - path: assets/floret_train_raw_text.txt
+      md5: 940e3381c1340c70da2595344ea0234a
 train:
   cmd: python -m weasel run train
   script:
+    - rm -rf assets/vectors
+    - mkdir assets/vectors
+    - floret cbow -dim 300 -minn 4 -maxn 5 -mode floret -hashCount 2 -bucket 50000
+      -input assets/floret_train_raw_text.txt -output assets/vectors/floret_sk
+    - python -m spacy init vectors sk assets/vectors/floret_sk.floret --mode floret
+      assets/vectors/sk_floret_pkg
     - python -m spacy train  configs/default.cfg --output training/UD_Slovak-SNK --gpu-id
-      -1  --paths.train corpus/UD_Slovak-SNK/train.spacy  --paths.dev corpus/UD_Slovak-SNK/dev.spacy  --nlp.lang=sk
+      -1  --paths.train corpus/UD_Slovak-SNK/train.spacy  --paths.dev corpus/UD_Slovak-SNK/dev.spacy  --paths.vectors
+      assets/vectors/sk_floret_pkg --nlp.lang=sk
   deps:
     - path: corpus/UD_Slovak-SNK/train.spacy
-      md5: 3f7495d4b672fe8e99234223513c0121
+      md5: 06c146244bb10f3fa1b9dcf21c446bf4
     - path: corpus/UD_Slovak-SNK/dev.spacy
-      md5: 940ba66d41ec9877f9c167933d0643b5
+      md5: f0731fea7f284b827ace3449d0ee5320
     - path: configs/default.cfg
       md5: 2a7152efcdc81ba97a7de5e4badea481
+    - path: assets/floret_train_raw_text.txt
+      md5: 940e3381c1340c70da2595344ea0234a
   outs:
     - path: training/UD_Slovak-SNK/model-best
-      md5: 636e77045abbdfb8ec3d35dc4e524a05
+      md5: a9f73388c816edcb166b7254240a63e1
 evaluate:
   cmd: python -m weasel run evaluate
   script:
@@ -47,22 +60,22 @@ evaluate:
       ./metrics/UD_Slovak-SNK.json  --gpu-id -1
   deps:
     - path: training/UD_Slovak-SNK/model-best
-      md5: 636e77045abbdfb8ec3d35dc4e524a05
+      md5: a9f73388c816edcb166b7254240a63e1
     - path: corpus/UD_Slovak-SNK/test.spacy
-      md5: feba339f6f235d983e2151b427760a66
+      md5: a1e4baaf9648791fb61ee24a23cab679
   outs:
     - path: metrics/UD_Slovak-SNK.json
-      md5: 38e0647431df6b70fabdb7bdeb4c81b2
+      md5: d393584fb316edf88aa5270b3bb326d8
 package:
   cmd: python -m weasel run package
   script:
     - python -m spacy package  training/UD_Slovak-SNK/model-best packages  --name
-      ud_sk_snk  --version 1.1.0 --force
+      ud_sk_snk  --version 1.2.0 --force
   deps:
     - path: training/UD_Slovak-SNK/model-best
-      md5: 636e77045abbdfb8ec3d35dc4e524a05
+      md5: a9f73388c816edcb166b7254240a63e1
   outs:
-    - path: packages/sk_ud_sk_snk-1.1.0/dist/en_ud_sk_snk-1.1.0.tar.gz
+    - path: packages/sk_ud_sk_snk-1.2.0/dist/en_ud_sk_snk-1.2.0.tar.gz
       md5: null
 clean:
   cmd: python -m weasel run clean
